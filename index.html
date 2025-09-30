@@ -551,7 +551,7 @@
     <div id="rules-modal" class="modal fixed inset-0 bg-black/60 flex items-center justify-center p-4 opacity-0 invisible z-50 backdrop-blur-sm">
         <div class="modal-content w-full max-w-lg themed-modal p-6 transform scale-95 -translate-y-4">
             <div class="flex justify-between items-center mb-4">
-                <h2 class="text-3xl font-bold" style="font-family: 'Pacifico', cursive; color: var(--accent);">How to Play Alloha - Cacti Facti - Box Vox Edition</h2>
+                <h2 class="text-3xl font-bold" style="font-family: 'Pacifico', cursive; color: var(--accent);">How to Play Alloha - Cacti Facti - W Edition</h2>
                 <button id="close-rules-btn" class="w-10 h-10 rounded-full text-xl flex items-center justify-center font-bold">×</button>
             </div>
             <div class="space-y-4 text-sm max-h-[70vh] overflow-y-auto pr-2" style="color: var(--text-secondary)">
@@ -800,12 +800,8 @@
             createCellElement(r, c) { const cell = document.createElement('div'); cell.dataset.row = r; cell.dataset.col = c; cell.className = this.getCellClasses(r, c); return cell; }
             getCellClasses(r, c) {
                 let classes = 'grid-cell';
-                const isTwinningCell = 
-                    (r === 3 && c >= 3 && c <= 5) || // 4th Row - Column 4 to 6
-                    (r === 5 && c >= 1 && c <= 3) || // 6th Row - Column 2 to 4
-                    (c === 1 && r >= 1 && r <= 5) || // 2nd Column - Row 2 to 6
-                    (c === 3) ||                     // 4th Column - Entire column
-                    (c === 5 && r >= 0 && r <= 3);   // 6th Column - Row 1 to 4
+                const highlightedCols = [0, 3, 6];
+                const isTwinningCell = r === 6 || highlightedCols.includes(c);
                 if (isTwinningCell) {
                     classes += ' highlighted';
                 }
@@ -1012,12 +1008,11 @@
                     }
                     return 0;
                 };
-                const segments = [
-                    { type: 'row', index: 3, start: 3, end: 5 }, // R4, C4-6
-                    { type: 'row', index: 5, start: 1, end: 3 }, // R6, C2-4
-                    { type: 'col', index: 1, start: 1, end: 5 }, // C2, R2-6
-                    { type: 'col', index: 3, start: 0, end: 6 }, // C4, R1-7
-                    { type: 'col', index: 5, start: 0, end: 3 }  // C6, R1-4
+                 const segments = [
+                    { type: 'row', index: 6, start: 0, end: 6 }, // Row 7
+                    { type: 'col', index: 0, start: 0, end: 6 }, // Column 1
+                    { type: 'col', index: 3, start: 0, end: 6 }, // Column 4
+                    { type: 'col', index: 6, start: 0, end: 6 }  // Column 7
                 ];
                 segments.forEach(seg => {
                     const segmentSymbols = [];
