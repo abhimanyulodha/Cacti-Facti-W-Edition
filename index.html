@@ -96,6 +96,18 @@
         .alloha-logo { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; }
         .alloha-logo svg { width: 100%; height: 100%; }
         .alloha-logo svg path, .alloha-logo svg g { fill: var(--accent) !important; }
+
+        .mode-toggle-btn {
+            background-color: transparent;
+            border: 1px solid var(--accent);
+            color: var(--accent);
+            transition: all 0.2s ease-in-out;
+        }
+        .mode-toggle-btn.active {
+            background: var(--accent-gradient);
+            color: white;
+            border-color: transparent;
+        }
     </style>
 </head>
 <body class="p-2 lg:p-4">
@@ -204,7 +216,11 @@
                  <h2 class="text-2xl font-bold" style="color: var(--accent);">Select Edition</h2>
                  <button id="close-edition-select-btn" class="w-10 h-10 rounded-full text-xl flex items-center justify-center font-bold">×</button>
             </div>
-            <div id="edition-options" class="flex flex-col gap-3"></div>
+            <div class="mb-4 p-1 bg-gray-200/50 rounded-full flex">
+                <button id="mode-classic-btn" class="flex-1 py-1 rounded-full text-sm font-semibold mode-toggle-btn active">Classic</button>
+                <button id="mode-time-burst-btn" class="flex-1 py-1 rounded-full text-sm font-semibold mode-toggle-btn">Time Burst</button>
+            </div>
+            <div id="edition-options" class="flex flex-col gap-3 max-h-64 overflow-y-auto"></div>
         </div>
     </div>
     
@@ -253,7 +269,6 @@
                 id: 'plain_jean',
                 name: 'Plain Jean',
                 title: 'Alloha - Cacti Facti - Plain Jean Edition',
-                highScoreKey: 'cactiFactiHighScore_plain_jean',
                 isTwinningCell: (r, c) => false,
                 getCrossScoreSegments: () => []
             },
@@ -261,7 +276,6 @@
                 id: 'one_won',
                 name: 'One Won',
                 title: 'Alloha - Cacti Facti - One Won Edition',
-                highScoreKey: 'cactiFactiHighScore_one_won',
                 isTwinningCell: (r, c) => c === 3,
                 getCrossScoreSegments: () => [{ type: 'col', index: 3, start: 0, end: 6 }]
             },
@@ -269,7 +283,6 @@
                 id: 'plus_minus',
                 name: 'Plus Minus',
                 title: 'Alloha - Cacti Facti - Plus Minus Edition',
-                highScoreKey: 'cactiFactiHighScore_plus_minus',
                 isTwinningCell: (r, c) => r === 3 || c === 3,
                 getCrossScoreSegments: () => [{ type: 'row', index: 3, start: 0, end: 6 }, { type: 'col', index: 3, start: 0, end: 6 }]
             },
@@ -277,7 +290,6 @@
                 id: 'sugar_cube',
                 name: 'Sugar Cube',
                 title: 'Alloha - Cacti Facti - Sugar Cube Edition',
-                highScoreKey: 'cactiFactiHighScore_sugar_cube',
                 isTwinningCell: (r, c) => r === 0 || r === 6 || c === 0 || c === 6,
                 getCrossScoreSegments: () => [
                     { type: 'row', index: 0, start: 0, end: 6 }, { type: 'row', index: 6, start: 0, end: 6 },
@@ -288,7 +300,6 @@
                 id: 'wonder_wander',
                 name: 'Wonder Wander Edition',
                 title: 'Alloha - Cacti Facti - Wonder Wander Edition',
-                highScoreKey: 'cactiFactiHighScore_wonder_wander',
                 isTwinningCell: (r, c) => {
                     const highlightedCols = [0, 3, 6];
                     return r === 6 || highlightedCols.includes(c);
@@ -302,7 +313,6 @@
                 id: 'jail_mail',
                 name: 'Jail Mail',
                 title: 'Alloha - Cacti Facti - Jail Mail Edition',
-                highScoreKey: 'cactiFactiHighScore_jail_mail',
                 isTwinningCell: (r, c) => [0, 2, 4, 6].includes(c),
                 getCrossScoreSegments: () => [
                     { type: 'col', index: 0, start: 0, end: 6 }, { type: 'col', index: 2, start: 0, end: 6 },
@@ -313,11 +323,7 @@
                 id: 'box_vox',
                 name: 'Box Vox Edition',
                 title: 'Alloha - Cacti Facti - Box Vox Edition',
-                highScoreKey: 'cactiFactiHighScore_box_vox',
-                isTwinningCell: (r, c) => {
-                    const highlighted = [0, 3, 6]; // Corresponds to rows/cols 1, 4, 7
-                    return highlighted.includes(r) || highlighted.includes(c);
-                },
+                isTwinningCell: (r, c) => [0, 3, 6].includes(r) || [0, 3, 6].includes(c),
                 getCrossScoreSegments: () => [
                     { type: 'row', index: 0, start: 0, end: 6 }, { type: 'row', index: 3, start: 0, end: 6 },
                     { type: 'row', index: 6, start: 0, end: 6 }, { type: 'col', index: 0, start: 0, end: 6 },
@@ -328,7 +334,6 @@
                 id: 'hash_hush',
                 name: 'Hash Hush',
                 title: 'Alloha - Cacti Facti - Hash Hush Edition',
-                highScoreKey: 'cactiFactiHighScore_hash_hush',
                 isTwinningCell: (r, c) => [2, 4].includes(r) || [2, 4].includes(c),
                 getCrossScoreSegments: () => [
                     { type: 'row', index: 2, start: 0, end: 6 }, { type: 'row', index: 4, start: 0, end: 6 },
@@ -339,13 +344,8 @@
                 id: 'core',
                 name: 'Cacti Facti Edition',
                 title: 'Alloha - Cacti Facti Edition',
-                highScoreKey: 'cactiFactiHighScore_core',
                 isTwinningCell: (r, c) => {
-                    return (r === 3 && c >= 3 && c <= 5) || // 4th Row - Column 4 to 6
-                           (r === 5 && c >= 1 && c <= 3) || // 6th Row - Column 2 to 4
-                           (c === 1 && r >= 1 && r <= 5) || // 2nd Column - Row 2 to 6
-                           (c === 3) ||                     // 4th Column - Entire column
-                           (c === 5 && r >= 0 && r <= 3);   // 6th Column - Row 1 to 4
+                    return (r === 3 && c >= 3 && c <= 5) || (r === 5 && c >= 1 && c <= 3) || (c === 1 && r >= 1 && r <= 5) || (c === 3) || (c === 5 && r >= 0 && r <= 3);
                 },
                 getCrossScoreSegments: () => [
                     { type: 'row', index: 3, start: 3, end: 5 }, { type: 'row', index: 5, start: 1, end: 3 },
@@ -357,8 +357,7 @@
                 id: 'eight_and_watch',
                 name: 'Eight and Watch',
                 title: 'Alloha - Cacti Facti - Eight and Watch Edition',
-                highScoreKey: 'cactiFactiHighScore_eight_and_watch',
-                isTwinningCell: (r, c) => (r === 0 && c >= 3) || (r === 3) || (r === 6 && c <= 3) || (c === 0 && r >= 3) || (c === 3) || (c === 4 && r <= 3),
+                isTwinningCell: (r, c) => (r === 0 && c >= 3) || (r === 3) || (r === 6 && c <= 3) || (c === 0 && r >= 3) || (c === 3 && r >= 0 && r <= 6) || (c === 4 && r <= 3),
                 getCrossScoreSegments: () => [
                     { type: 'row', index: 0, start: 3, end: 6 }, { type: 'row', index: 3, start: 0, end: 6 }, { type: 'row', index: 6, start: 0, end: 3 },
                     { type: 'col', index: 0, start: 3, end: 6 }, { type: 'col', index: 3, start: 0, end: 6 }, { type: 'col', index: 4, start: 0, end: 3 }
@@ -368,7 +367,6 @@
                 id: 'fake_snake',
                 name: 'Fake Snake',
                 title: 'Alloha - Cacti Facti - Fake Snake Edition',
-                highScoreKey: 'cactiFactiHighScore_fake_snake',
                 isTwinningCell: (r, c) => (r === 0 && c >= 4) || (r === 2 && c >= 2 && c <= 4) || (r === 4 && c <= 2) || (c === 0 && r >= 4) || (c === 2 && r >= 2 && r <= 4) || (c === 4 && r <= 2),
                 getCrossScoreSegments: () => [
                     { type: 'row', index: 0, start: 4, end: 6 }, { type: 'row', index: 2, start: 2, end: 4 }, { type: 'row', index: 4, start: 0, end: 2 },
@@ -379,7 +377,6 @@
                 id: 'rune_dune',
                 name: 'Rune Dune',
                 title: 'Alloha - Cacti Facti - Rune Dune Edition',
-                highScoreKey: 'cactiFactiHighScore_rune_dune',
                 isTwinningCell: (r, c) => (r === 2 && c >= 1 && c <= 5) || (r === 4 && c >= 1 && c <= 5) || (c === 1 && (r <= 2 || r >= 4)) || (c === 3) || (c === 5 && (r <= 2 || r >= 4)),
                 getCrossScoreSegments: () => [
                     { type: 'row', index: 2, start: 1, end: 5 }, { type: 'row', index: 4, start: 1, end: 5 },
@@ -392,7 +389,6 @@
                 id: 'space_race',
                 name: 'Space Race',
                 title: 'Alloha - Cacti Facti - Space Race Edition',
-                highScoreKey: 'cactiFactiHighScore_space_race',
                 isTwinningCell: (r, c) => (r === 2 && c >= 2 && c <= 4) || (r === 3 && (c <= 2 || c >= 4)) || (r === 4 && c >= 2 && c <= 4) || (c === 2 && r >= 2 && r <= 4) || (c === 3 && (r <= 2 || r >= 4)) || (c === 4 && r >= 2 && r <= 4),
                 getCrossScoreSegments: () => [
                     { type: 'row', index: 2, start: 2, end: 4 }, { type: 'row', index: 3, start: 0, end: 2 }, { type: 'row', index: 3, start: 4, end: 6 }, { type: 'row', index: 4, start: 2, end: 4 },
@@ -403,7 +399,6 @@
                 id: 'flower_power',
                 name: 'Flower Power',
                 title: 'Alloha - Cacti Facti - Flower Power Edition',
-                highScoreKey: 'cactiFactiHighScore_flower_power',
                 isTwinningCell: (r, c) => (r === 0 && c >= 2 && c <= 4) || (r === 2 && c >= 2 && c <= 4) || r === 4 || (c === 1 && r >= 3 && r <= 5) || (c === 2 && r <= 2) || (c === 3 && r >= 2) || (c === 4 && r <= 2) || (c === 5 && r >= 3 && r <= 5),
                 getCrossScoreSegments: () => [
                     { type: 'row', index: 0, start: 2, end: 4 }, { type: 'row', index: 2, start: 2, end: 4 }, { type: 'row', index: 4, start: 0, end: 6 },
@@ -415,7 +410,6 @@
                 id: 'monster',
                 name: 'Monster Monster',
                 title: 'Alloha - Cacti Facti - Monster Edition',
-                highScoreKey: 'cactiFactiHighScore_monster',
                 isTwinningCell: (r, c) => (r === 0 && c <= 2) || (r === 2 && c <= 4) || (r === 3 && c >= 4) || (r === 4 && c >= 2 && c <= 4) || (r === 6 && c <= 3) || (c === 0 && r <= 2) || (c === 2 && r <= 4) || (c === 3 && r >= 4) || (c === 4 && r >= 2 && r <= 4),
                  getCrossScoreSegments: () => [
                     { type: 'row', index: 0, start: 0, end: 2 }, { type: 'row', index: 2, start: 0, end: 4 }, { type: 'row', index: 3, start: 4, end: 6 }, { type: 'row', index: 4, start: 2, end: 4 }, { type: 'row', index: 6, start: 0, end: 3 },
@@ -431,8 +425,11 @@
         }
 
         class Game {
-            constructor(config, savedState = null) {
+            constructor(config, isTimeBurst, savedState = null) {
                 this.config = config;
+                this.isTimeBurst = isTimeBurst;
+                this.timerId = null;
+                this.timeLeft = 60;
                 this.DESERT_SYMBOLS = { 'Hut': '🛖', 'Cactus': '🌵', 'Rock': '🪨', 'Sun': '🌞', 'PalmTree': '🌴', 'Snake': '🐍' };
                 this.SPECIAL_SYMBOLS = { 'WILD': '💎', 'CURSED': '☠️' };
                 this.SYMBOLS = Object.values(this.DESERT_SYMBOLS);
@@ -472,7 +469,7 @@
             }
 
             init(savedState = null) {
-                // Explicitly reset all state variables for a clean slate
+                this.stopTimer();
                 this.gridData = Array(this.GRID_SIZE).fill(null).map(() => Array(this.GRID_SIZE).fill(null));
                 this.currentRoll = [];
                 this.firstPlacementCell = null;
@@ -497,6 +494,9 @@
                     this.cursedBlockTurn = savedState.cursedBlockTurn;
                     this.wildcardTurn = savedState.wildcardTurn;
                     this.gameStateManager.currentState = savedState.currentState;
+                    this.timeLeft = savedState.timeLeft;
+                    if(this.isTimeBurst && this.turnCount > 0) this.startTimer();
+
                 } else {
                     this.cursedBlockTurn = Math.floor(Math.random() * 8) + 5;
                     this.wildcardTurn = Math.floor(Math.random() * 8) + 15;
@@ -505,7 +505,8 @@
 
                 this.cellToExchange = null; this.swapFirstCell = null;
                 
-                this.highScore = parseInt(localStorage.getItem(this.config.highScoreKey)) || 0;
+                const highScoreKey = `cactiFactiHighScore_${this.config.id}_${this.isTimeBurst ? 'timeburst' : 'classic'}`;
+                this.highScore = parseInt(localStorage.getItem(highScoreKey)) || 0;
                 this.DOMElements.high_score.textContent = this.highScore;
                 this.DOMElements.rules_title.textContent = this.config.title;
 
@@ -533,7 +534,9 @@
                     currentTotalScore: this.currentTotalScore,
                     cursedBlockTurn: this.cursedBlockTurn,
                     wildcardTurn: this.wildcardTurn,
-                    currentState: this.gameStateManager.currentState
+                    currentState: this.gameStateManager.currentState,
+                    timeLeft: this.timeLeft,
+                    isTimeBurst: this.isTimeBurst
                 };
             }
 
@@ -543,6 +546,32 @@
             audioPlayTone(freq, vol, dur) { if (!this.audio.unlocked || !this.audio.context) return; try { const o = this.audio.context.createOscillator(), g = this.audio.context.createGain(); o.connect(g); g.connect(this.audio.context.destination); o.frequency.value = freq; g.gain.setValueAtTime(0, this.audio.context.currentTime); g.gain.linearRampToValueAtTime(vol*.1, this.audio.context.currentTime+.01); g.gain.exponentialRampToValueAtTime(.001, this.audio.context.currentTime+dur); o.start(); o.stop(this.audio.context.currentTime+dur); } catch (e) {} }
             audioUnlock() { if (this.audio.unlocked) return; document.getElementById('audio-unlocker').play().finally(() => { this.audio.unlocked = true; }); }
             audioPlay(soundName) { this.audio.sounds.get(soundName)?.(); }
+
+            startTimer() {
+                if (this.timerId) return;
+                this.timerId = setInterval(() => {
+                    this.timeLeft--;
+                    this.updateTimerDisplay();
+                    if (this.timeLeft <= 0) {
+                        this.stopTimer();
+                        this.endGame("Time's up!");
+                    }
+                }, 1000);
+            }
+
+            stopTimer() {
+                if (this.timerId) {
+                    clearInterval(this.timerId);
+                    this.timerId = null;
+                }
+            }
+
+            updateTimerDisplay() {
+                const timerEl = document.getElementById('timer-display');
+                if (timerEl) {
+                    timerEl.textContent = this.timeLeft;
+                }
+            }
 
             calculateLineScore(line) {
                 let totalScore = 0; const usedIndices = new Set();
@@ -671,7 +700,18 @@
             renderDiceAndPowers() {
                 const wrapper = document.createElement('div');
                 wrapper.className = 'w-full flex flex-col justify-center gap-3 lg:gap-4 pt-2';
-                wrapper.innerHTML = `<div class="flex justify-center items-center gap-2 lg:gap-4"><button id="roll-dice-btn" class="w-14 h-14 lg:w-16 lg:h-16 text-4xl lg:text-5xl flex items-center justify-center" style="color: var(--accent);">🎲</button><div id="dice-1" class="w-14 h-14 lg:w-16 lg:h-16 rounded-xl glass-card flex items-center justify-center text-3xl lg:text-4xl">?</div><div id="dice-2" class="w-14 h-14 lg:w-16 lg:h-16 rounded-xl glass-card flex items-center justify-center text-3xl lg:text-4xl">?</div></div><div class="glass-card rounded-xl px-3 py-4 text-center"><h2 class="text-sm font-semibold uppercase tracking-wider mb-3 flex items-center justify-center gap-2" style="color: var(--text-secondary);">Alloha Power 🪄</h2><div class="grid grid-cols-4 gap-1 text-center"><button id="past-lives-btn" class="superpower-btn"><div>Past</div><div>Lives</div></button><button id="no-return-btn" class="superpower-btn"><div>No</div><div>Return</div></button><button id="bomb-bae-btn" class="superpower-btn"><div>Bomb</div><div>Bae</div></button><button id="swap-them-btn" class="superpower-btn"><div>Swap</div><div>Them</div></button></div></div>`;
+                let timerHTML = '';
+                if(this.isTimeBurst) {
+                    timerHTML = `<div id="timer-display" class="w-14 h-14 lg:w-16 lg:h-16 rounded-xl glass-card flex items-center justify-center text-2xl lg:text-3xl font-bold" style="color: var(--accent);">60</div>`;
+                }
+
+                wrapper.innerHTML = `<div class="flex justify-center items-center gap-2 lg:gap-4">
+                    <button id="roll-dice-btn" class="w-14 h-14 lg:w-16 lg:h-16 text-4xl lg:text-5xl flex items-center justify-center" style="color: var(--accent);">🎲</button>
+                    <div id="dice-1" class="w-14 h-14 lg:w-16 lg:h-16 rounded-xl glass-card flex items-center justify-center text-3xl lg:text-4xl">?</div>
+                    <div id="dice-2" class="w-14 h-14 lg:w-16 lg:h-16 rounded-xl glass-card flex items-center justify-center text-3xl lg:text-4xl">?</div>
+                    ${timerHTML}
+                </div>
+                <div class="glass-card rounded-xl px-3 py-4 text-center"><h2 class="text-sm font-semibold uppercase tracking-wider mb-3 flex items-center justify-center gap-2" style="color: var(--text-secondary);">Alloha Power 🪄</h2><div class="grid grid-cols-4 gap-1 text-center"><button id="past-lives-btn" class="superpower-btn"><div>Past</div><div>Lives</div></button><button id="no-return-btn" class="superpower-btn"><div>No</div><div>Return</div></button><button id="bomb-bae-btn" class="superpower-btn"><div>Bomb</div><div>Bae</div></button><button id="swap-them-btn" class="superpower-btn"><div>Swap</div><div>Them</div></button></div></div>`;
                 wrapper.querySelector('#roll-dice-btn').onclick = this.handleRollDice.bind(this);
                 this.DOMElements.in_game_content.innerHTML = '';
                 this.DOMElements.in_game_content.appendChild(wrapper);
@@ -693,7 +733,11 @@
                     dice2.textContent = '?'; dice2.className = 'w-14 h-14 lg:w-16 lg:h-16 rounded-xl glass-card flex items-center justify-center text-3xl lg:text-4xl';
                 }
             }
-            handleSymbolSelect(symbol) { if (!this.gameStateManager.is('PRE_GAME')) return; this.audioUnlock(); this.audioPlay('pop'); this.gridData[0][0] = symbol; this.gameStateManager.setState('AWAITING_ROLL'); this.updateGridCell(0, 0); this.renderControls(); }
+            handleSymbolSelect(symbol) { 
+                if (!this.gameStateManager.is('PRE_GAME')) return; 
+                if (this.isTimeBurst) this.startTimer();
+                this.audioUnlock(); this.audioPlay('pop'); this.gridData[0][0] = symbol; this.gameStateManager.setState('AWAITING_ROLL'); this.updateGridCell(0, 0); this.renderControls(); 
+            }
             handleRollDice() {
                 if (!this.gameStateManager.is('AWAITING_ROLL') || this.gameStateManager.is('GAME_OVER')) return;
                 const nextTurn = this.turnCount + 1; let tempRoll;
@@ -746,9 +790,13 @@
             }
             endGame(reason = "") {
                 if (this.gameStateManager.is('GAME_OVER')) return;
+                this.stopTimer();
                 this.gameStateManager.setState('GAME_OVER'); this.updateAllScores();
                 const finalScore = this.currentTotalScore;
-                if (finalScore > this.highScore) { this.highScore = finalScore; localStorage.setItem(this.config.highScoreKey, this.highScore); }
+                
+                const highScoreKey = `cactiFactiHighScore_${this.config.id}_${this.isTimeBurst ? 'timeburst' : 'classic'}`;
+                if (finalScore > this.highScore) { this.highScore = finalScore; localStorage.setItem(highScoreKey, this.highScore); }
+
                 this.DOMElements.game_over_reason.textContent = reason;
                 this.DOMElements.final_score_modal.textContent = finalScore;
                 this.DOMElements.high_score_modal.textContent = this.highScore;
@@ -863,6 +911,7 @@
                     this.turnCount = state.turnCount;
                     this.stuckBlocks = new Set(state.stuckBlocks);
                     this.gameStateManager.currentState = state.currentState;
+                    this.timeLeft = state.timeLeft;
 
                     this.updateFullGrid();
                     this.updateControlsState();
@@ -888,15 +937,31 @@
             activeVariantId: null,
             currentGameInstance: null,
             pendingAction: null,
+            activeMode: 'classic',
 
             init() {
                 this.populateEditionModal();
                 this.setupGlobalEventListeners();
-                this.switchVariant('plain_jean');
+                this.switchVariant('plain_jean', false);
             },
 
             populateEditionModal() {
                 const container = document.getElementById('edition-options');
+                const classicBtn = document.getElementById('mode-classic-btn');
+                const timeBurstBtn = document.getElementById('mode-time-burst-btn');
+
+                classicBtn.addEventListener('click', () => {
+                    this.activeMode = 'classic';
+                    classicBtn.classList.add('active');
+                    timeBurstBtn.classList.remove('active');
+                });
+                timeBurstBtn.addEventListener('click', () => {
+                    this.activeMode = 'timeburst';
+                    timeBurstBtn.classList.add('active');
+                    classicBtn.classList.remove('active');
+                });
+
+
                 container.innerHTML = '';
                 Object.values(variantConfigs).forEach(config => {
                     const button = document.createElement('button');
@@ -907,45 +972,47 @@
                         const isGameInProgress = game && game.turnCount > 0 && !game.gameStateManager.is('GAME_OVER');
                         
                         document.getElementById('edition-select-modal').classList.remove('is-open');
+                        const isTimeBurst = this.activeMode === 'timeburst';
 
                         if (isGameInProgress) {
-                            this.pendingAction = () => this.switchVariant(config.id, true);
+                            this.pendingAction = () => this.switchVariant(config.id, isTimeBurst, true);
                             document.getElementById('confirm-restart-modal').classList.add('is-open');
                         } else {
-                            this.switchVariant(config.id);
+                            this.switchVariant(config.id, isTimeBurst);
                         }
                     };
                     container.appendChild(button);
                 });
             },
 
-            switchVariant(variantId, isNewGame = false) {
+            switchVariant(variantId, isTimeBurst, isNewGame = false) {
                 const gameContainer = document.getElementById('game-container');
                 gameContainer.style.opacity = '0';
 
                 if (this.currentGameInstance && !isNewGame) {
-                    this.gameStates[this.activeVariantId] = this.currentGameInstance.getState();
+                    this.gameStates[this.activeVariantId + (this.currentGameInstance.isTimeBurst ? '_timeburst' : '_classic')] = this.currentGameInstance.getState();
                 }
 
                 setTimeout(() => {
                     this.activeVariantId = variantId;
                     const config = variantConfigs[variantId];
-                    const savedState = isNewGame ? null : this.gameStates[variantId];
+                    const gameStateKey = variantId + (isTimeBurst ? '_timeburst' : '_classic');
+                    const savedState = isNewGame ? null : this.gameStates[gameStateKey];
                     
                     if (isNewGame) {
-                        delete this.gameStates[variantId];
+                        delete this.gameStates[gameStateKey];
                     }
 
-                    this.currentGameInstance = new Game(config, savedState);
+                    this.currentGameInstance = new Game(config, isTimeBurst, savedState);
                     
-                    document.getElementById('current-edition-display').textContent = 'Now Playing: ' + config.name;
+                    document.getElementById('current-edition-display').textContent = 'Now Playing: ' + config.name + (isTimeBurst ? ' - Time Burst' : '');
                     
                     gameContainer.style.opacity = '1';
                 }, 250);
             },
             
             resetCurrentVariant() {
-                this.switchVariant(this.activeVariantId, true);
+                this.switchVariant(this.activeVariantId, this.currentGameInstance.isTimeBurst, true);
             },
             
             setupGlobalEventListeners() {
