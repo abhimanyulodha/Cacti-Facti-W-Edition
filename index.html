@@ -17,6 +17,7 @@
             --accent: #E57373;
             --accent-light: rgba(229, 115, 115, 0.1);
             --accent-gradient: linear-gradient(135deg, #E57373 0%, #FF8A65 100%);
+            --accent-gradient-shaded: linear-gradient(135deg, #EE9A9A 0%, #FFCCBC 100%);
             --stuck-block: linear-gradient(135deg, #757575 0%, #616161 100%);
             --glass-border: rgba(255, 255, 255, 0.2);
             --shadow-soft: 0 6px 20px rgba(0, 0, 0, 0.06);
@@ -131,7 +132,7 @@
                 </div>
 
                 <div class="text-center">
-                    <button id="select-edition-btn" class="w-full py-2 px-4 themed-button text-sm flex items-center justify-center gap-2" style="color: var(--accent); background: var(--accent-light);">
+                    <button id="select-edition-btn" class="w-full py-2 px-4 themed-button text-white text-sm flex items-center justify-center gap-2" style="background: var(--accent-gradient-shaded);">
                         Select Game Edition
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
                     </button>
@@ -248,53 +249,6 @@
     <script>
         // --- VARIANT CONFIGURATIONS ---
         const variantConfigs = {
-            'core': {
-                id: 'core',
-                name: 'Cacti Facti Edition',
-                title: 'Alloha - Cacti Facti Edition',
-                highScoreKey: 'cactiFactiHighScore_core',
-                isTwinningCell: (r, c) => {
-                    return (r === 3 && c >= 3 && c <= 5) || // 4th Row - Column 4 to 6
-                           (r === 5 && c >= 1 && c <= 3) || // 6th Row - Column 2 to 4
-                           (c === 1 && r >= 1 && r <= 5) || // 2nd Column - Row 2 to 6
-                           (c === 3) ||                     // 4th Column - Entire column
-                           (c === 5 && r >= 0 && r <= 3);   // 6th Column - Row 1 to 4
-                },
-                getCrossScoreSegments: () => [
-                    { type: 'row', index: 3, start: 3, end: 5 }, { type: 'row', index: 5, start: 1, end: 3 },
-                    { type: 'col', index: 1, start: 1, end: 5 }, { type: 'col', index: 3, start: 0, end: 6 },
-                    { type: 'col', index: 5, start: 0, end: 3 }
-                ]
-            },
-            'box_vox': {
-                id: 'box_vox',
-                name: 'Box Vox Edition',
-                title: 'Alloha - Cacti Facti - Box Vox Edition',
-                highScoreKey: 'cactiFactiHighScore_box_vox',
-                isTwinningCell: (r, c) => {
-                    const highlighted = [0, 3, 6]; // Corresponds to rows/cols 1, 4, 7
-                    return highlighted.includes(r) || highlighted.includes(c);
-                },
-                getCrossScoreSegments: () => [
-                    { type: 'row', index: 0, start: 0, end: 6 }, { type: 'row', index: 3, start: 0, end: 6 },
-                    { type: 'row', index: 6, start: 0, end: 6 }, { type: 'col', index: 0, start: 0, end: 6 },
-                    { type: 'col', index: 3, start: 0, end: 6 }, { type: 'col', index: 6, start: 0, end: 6 }
-                ]
-            },
-            'w': {
-                id: 'w',
-                name: 'W Edition',
-                title: 'Alloha - Cacti Facti - W Edition',
-                highScoreKey: 'cactiFactiHighScore_w',
-                isTwinningCell: (r, c) => {
-                    const highlightedCols = [0, 3, 6];
-                    return r === 6 || highlightedCols.includes(c);
-                },
-                getCrossScoreSegments: () => [
-                    { type: 'row', index: 6, start: 0, end: 6 }, { type: 'col', index: 0, start: 0, end: 6 },
-                    { type: 'col', index: 3, start: 0, end: 6 }, { type: 'col', index: 6, start: 0, end: 6 }
-                ]
-            },
             'plain_jean': {
                 id: 'plain_jean',
                 name: 'Plain Jean',
@@ -330,6 +284,20 @@
                     { type: 'col', index: 0, start: 0, end: 6 }, { type: 'col', index: 6, start: 0, end: 6 }
                 ]
             },
+            'wonder_wander': {
+                id: 'wonder_wander',
+                name: 'Wonder Wander Edition',
+                title: 'Alloha - Cacti Facti - Wonder Wander Edition',
+                highScoreKey: 'cactiFactiHighScore_wonder_wander',
+                isTwinningCell: (r, c) => {
+                    const highlightedCols = [0, 3, 6];
+                    return r === 6 || highlightedCols.includes(c);
+                },
+                getCrossScoreSegments: () => [
+                    { type: 'row', index: 6, start: 0, end: 6 }, { type: 'col', index: 0, start: 0, end: 6 },
+                    { type: 'col', index: 3, start: 0, end: 6 }, { type: 'col', index: 6, start: 0, end: 6 }
+                ]
+            },
             'jail_mail': {
                 id: 'jail_mail',
                 name: 'Jail Mail',
@@ -339,6 +307,39 @@
                 getCrossScoreSegments: () => [
                     { type: 'col', index: 0, start: 0, end: 6 }, { type: 'col', index: 2, start: 0, end: 6 },
                     { type: 'col', index: 4, start: 0, end: 6 }, { type: 'col', index: 6, start: 0, end: 6 }
+                ]
+            },
+            'box_vox': {
+                id: 'box_vox',
+                name: 'Box Vox Edition',
+                title: 'Alloha - Cacti Facti - Box Vox Edition',
+                highScoreKey: 'cactiFactiHighScore_box_vox',
+                isTwinningCell: (r, c) => {
+                    const highlighted = [0, 3, 6]; // Corresponds to rows/cols 1, 4, 7
+                    return highlighted.includes(r) || highlighted.includes(c);
+                },
+                getCrossScoreSegments: () => [
+                    { type: 'row', index: 0, start: 0, end: 6 }, { type: 'row', index: 3, start: 0, end: 6 },
+                    { type: 'row', index: 6, start: 0, end: 6 }, { type: 'col', index: 0, start: 0, end: 6 },
+                    { type: 'col', index: 3, start: 0, end: 6 }, { type: 'col', index: 6, start: 0, end: 6 }
+                ]
+            },
+            'core': {
+                id: 'core',
+                name: 'Cacti Facti Edition',
+                title: 'Alloha - Cacti Facti Edition',
+                highScoreKey: 'cactiFactiHighScore_core',
+                isTwinningCell: (r, c) => {
+                    return (r === 3 && c >= 3 && c <= 5) || // 4th Row - Column 4 to 6
+                           (r === 5 && c >= 1 && c <= 3) || // 6th Row - Column 2 to 4
+                           (c === 1 && r >= 1 && r <= 5) || // 2nd Column - Row 2 to 6
+                           (c === 3) ||                     // 4th Column - Entire column
+                           (c === 5 && r >= 0 && r <= 3);   // 6th Column - Row 1 to 4
+                },
+                getCrossScoreSegments: () => [
+                    { type: 'row', index: 3, start: 3, end: 5 }, { type: 'row', index: 5, start: 1, end: 3 },
+                    { type: 'col', index: 1, start: 1, end: 5 }, { type: 'col', index: 3, start: 0, end: 6 },
+                    { type: 'col', index: 5, start: 0, end: 3 }
                 ]
             }
         };
@@ -811,7 +812,7 @@
             init() {
                 this.populateEditionModal();
                 this.setupGlobalEventListeners();
-                this.switchVariant('core'); // Default variant
+                this.switchVariant('plain_jean'); // Default variant
             },
 
             populateEditionModal() {
