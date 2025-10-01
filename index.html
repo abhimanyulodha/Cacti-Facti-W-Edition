@@ -97,16 +97,52 @@
         .alloha-logo svg { width: 100%; height: 100%; }
         .alloha-logo svg path, .alloha-logo svg g { fill: var(--accent) !important; }
 
-        .mode-toggle-btn {
-            background-color: transparent;
-            border: 1px solid var(--accent);
-            color: var(--accent);
-            transition: all 0.2s ease-in-out;
+        #mode-toggle-switch { transition: background-color 0.2s ease-in-out; }
+        #mode-toggle-switch.time-burst-active { background-color: var(--accent); }
+        #mode-toggle-switch.time-burst-active #mode-toggle-thumb { transform: translateX(1.5rem); }
+
+        #edition-options::-webkit-scrollbar { width: 8px; }
+        #edition-options::-webkit-scrollbar-track { background: rgba(0,0,0,0.05); border-radius: 4px; }
+        #edition-options::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.2); border-radius: 4px; }
+        #edition-options::-webkit-scrollbar-thumb:hover { background: rgba(0,0,0,0.3); }
+
+        .edition-selected { background-color: var(--accent-light) !important; font-weight: 700; color: var(--accent); }
+
+        .shockwave {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(255,138,101,0) 0%, rgba(229,115,115,0.8) 40%, rgba(229,115,115,0) 70%);
+            transform: translate(-50%, -50%);
+            animation: shockwave-animation 0.7s ease-out forwards;
+            opacity: 0;
         }
-        .mode-toggle-btn.active {
-            background: var(--accent-gradient);
-            color: white;
-            border-color: transparent;
+
+        @keyframes shockwave-animation {
+            0% { transform: translate(-50%, -50%) scale(0); opacity: 1; }
+            100% { transform: translate(-50%, -50%) scale(10); opacity: 0; }
+        }
+
+        .confetti-piece {
+            position: absolute;
+            width: 8px;
+            height: 16px;
+            background: var(--accent);
+            top: -20px;
+            opacity: 0;
+            animation-timing-function: linear;
+        }
+        @keyframes confetti-fall {
+            0% { top: -20px; opacity: 1; transform: rotate(0deg); }
+            100% { top: 100%; opacity: 1; transform: rotate(720deg); }
+        }
+        .focused-cell {
+            outline: 3px solid var(--accent);
+            outline-offset: 2px;
+            box-shadow: 0 0 12px var(--accent);
         }
     </style>
 </head>
@@ -202,7 +238,7 @@
                     <li><b>Cursed Block (☠️):</b> An immovable obstacle! This block cannot be removed by Bomb Bae or swapped with No Return. Appears once per game.</li>
                  </ul>
                  <h3 class="font-bold text-lg" style="color: var(--accent);">Scoring</h3>
-                 <ul class="list-disc list-inside space-y-1"><li><b>3 in a line:</b> 3 points</li><li><b>4 in a line:</b> 8 points</li><li><b>5 in a line:</b> 10 points</li><li><b>6 in a line:</b> 14 points</li><li><b>7 in a line:</b> 20 points</li>
+                 <ul class="list-disc list-inside space-y-1"><li><b>3 in a line:</b> 3 points</li><li><b>4 in a line:</b> 5 points</li><li><b>5 in a line:</b> 8 points</li><li><b>6 in a line:</b> 12 points</li><li><b>7 in a line:</b> 20 points</li>
                  <li><b>Twinning Pattern Bonus:</b> Scores on the special highlighted pattern are doubled!</li>
                  <li><b>Grid Bonus:</b> 2x2, 3x3, etc. grids of the same Alloha give bonus points (size * size).</li>
                  <li><b>Penalty:</b> A row or column that can no longer form a 3-symbol sequence gets a -5 penalty. A "dead" line on the twinning pattern gets a -5 penalty.</li></ul>
@@ -216,9 +252,12 @@
                  <h2 class="text-2xl font-bold" style="color: var(--accent);">Select Edition</h2>
                  <button id="close-edition-select-btn" class="w-10 h-10 rounded-full text-xl flex items-center justify-center font-bold">×</button>
             </div>
-            <div class="mb-4 p-1 bg-gray-200/50 rounded-full flex">
-                <button id="mode-classic-btn" class="flex-1 py-1 rounded-full text-sm font-semibold mode-toggle-btn active">Classic</button>
-                <button id="mode-time-burst-btn" class="flex-1 py-1 rounded-full text-sm font-semibold mode-toggle-btn">Time Burst</button>
+            <div class="flex items-center justify-center mb-4 space-x-4">
+                <span id="classic-text" class="font-semibold text-gray-600">Classic</span>
+                <div id="mode-toggle-switch" class="w-14 h-8 flex items-center bg-gray-300 rounded-full p-1 cursor-pointer">
+                    <div id="mode-toggle-thumb" class="bg-white w-6 h-6 rounded-full shadow-md transform transition-transform"></div>
+                </div>
+                <span id="time-burst-text" class="font-semibold text-gray-600">Time Burst</span>
             </div>
             <div id="edition-options" class="flex flex-col gap-3 max-h-64 overflow-y-auto"></div>
         </div>
@@ -263,159 +302,61 @@
     </div>
 
     <script>
+        const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+        const generateCrossScoreSegments = (isTwinningCell) => {
+            const segments = [];
+            const GRID_SIZE = 7;
+
+            const processLine = (lineType, index) => {
+                let currentSegment = null;
+                for (let i = 0; i < GRID_SIZE; i++) {
+                    const isTwinning = (lineType === 'row') ? isTwinningCell(index, i) : isTwinningCell(i, index);
+                    if (isTwinning) {
+                        if (currentSegment === null) {
+                            currentSegment = { type: lineType, index: index, start: i, end: i };
+                        } else {
+                            currentSegment.end = i;
+                        }
+                    } else {
+                        if (currentSegment !== null) {
+                            segments.push(currentSegment);
+                            currentSegment = null;
+                        }
+                    }
+                }
+                if (currentSegment !== null) {
+                    segments.push(currentSegment);
+                }
+            };
+
+            for (let r = 0; r < GRID_SIZE; r++) {
+                processLine('row', r);
+            }
+            for (let c = 0; c < GRID_SIZE; c++) {
+                processLine('col', c);
+            }
+            
+            return segments;
+        };
+        
         // --- VARIANT CONFIGURATIONS ---
         const variantConfigs = {
-            'plain_jean': {
-                id: 'plain_jean',
-                name: 'Plain Jean',
-                title: 'Alloha - Cacti Facti - Plain Jean Edition',
-                isTwinningCell: (r, c) => false,
-                getCrossScoreSegments: () => []
-            },
-            'one_won': {
-                id: 'one_won',
-                name: 'One Won',
-                title: 'Alloha - Cacti Facti - One Won Edition',
-                isTwinningCell: (r, c) => c === 3,
-                getCrossScoreSegments: () => [{ type: 'col', index: 3, start: 0, end: 6 }]
-            },
-            'plus_minus': {
-                id: 'plus_minus',
-                name: 'Plus Minus',
-                title: 'Alloha - Cacti Facti - Plus Minus Edition',
-                isTwinningCell: (r, c) => r === 3 || c === 3,
-                getCrossScoreSegments: () => [{ type: 'row', index: 3, start: 0, end: 6 }, { type: 'col', index: 3, start: 0, end: 6 }]
-            },
-            'sugar_cube': {
-                id: 'sugar_cube',
-                name: 'Sugar Cube',
-                title: 'Alloha - Cacti Facti - Sugar Cube Edition',
-                isTwinningCell: (r, c) => r === 0 || r === 6 || c === 0 || c === 6,
-                getCrossScoreSegments: () => [
-                    { type: 'row', index: 0, start: 0, end: 6 }, { type: 'row', index: 6, start: 0, end: 6 },
-                    { type: 'col', index: 0, start: 0, end: 6 }, { type: 'col', index: 6, start: 0, end: 6 }
-                ]
-            },
-            'wonder_wander': {
-                id: 'wonder_wander',
-                name: 'Wonder Wander Edition',
-                title: 'Alloha - Cacti Facti - Wonder Wander Edition',
-                isTwinningCell: (r, c) => {
-                    const highlightedCols = [0, 3, 6];
-                    return r === 6 || highlightedCols.includes(c);
-                },
-                getCrossScoreSegments: () => [
-                    { type: 'row', index: 6, start: 0, end: 6 }, { type: 'col', index: 0, start: 0, end: 6 },
-                    { type: 'col', index: 3, start: 0, end: 6 }, { type: 'col', index: 6, start: 0, end: 6 }
-                ]
-            },
-            'jail_mail': {
-                id: 'jail_mail',
-                name: 'Jail Mail',
-                title: 'Alloha - Cacti Facti - Jail Mail Edition',
-                isTwinningCell: (r, c) => [0, 2, 4, 6].includes(c),
-                getCrossScoreSegments: () => [
-                    { type: 'col', index: 0, start: 0, end: 6 }, { type: 'col', index: 2, start: 0, end: 6 },
-                    { type: 'col', index: 4, start: 0, end: 6 }, { type: 'col', index: 6, start: 0, end: 6 }
-                ]
-            },
-            'box_vox': {
-                id: 'box_vox',
-                name: 'Box Vox Edition',
-                title: 'Alloha - Cacti Facti - Box Vox Edition',
-                isTwinningCell: (r, c) => [0, 3, 6].includes(r) || [0, 3, 6].includes(c),
-                getCrossScoreSegments: () => [
-                    { type: 'row', index: 0, start: 0, end: 6 }, { type: 'row', index: 3, start: 0, end: 6 },
-                    { type: 'row', index: 6, start: 0, end: 6 }, { type: 'col', index: 0, start: 0, end: 6 },
-                    { type: 'col', index: 3, start: 0, end: 6 }, { type: 'col', index: 6, start: 0, end: 6 }
-                ]
-            },
-             'hash_hush': {
-                id: 'hash_hush',
-                name: 'Hash Hush',
-                title: 'Alloha - Cacti Facti - Hash Hush Edition',
-                isTwinningCell: (r, c) => [2, 4].includes(r) || [2, 4].includes(c),
-                getCrossScoreSegments: () => [
-                    { type: 'row', index: 2, start: 0, end: 6 }, { type: 'row', index: 4, start: 0, end: 6 },
-                    { type: 'col', index: 2, start: 0, end: 6 }, { type: 'col', index: 4, start: 0, end: 6 }
-                ]
-            },
-            'core': {
-                id: 'core',
-                name: 'Cacti Facti Edition',
-                title: 'Alloha - Cacti Facti Edition',
-                isTwinningCell: (r, c) => {
-                    return (r === 3 && c >= 3 && c <= 5) || (r === 5 && c >= 1 && c <= 3) || (c === 1 && r >= 1 && r <= 5) || (c === 3) || (c === 5 && r >= 0 && r <= 3);
-                },
-                getCrossScoreSegments: () => [
-                    { type: 'row', index: 3, start: 3, end: 5 }, { type: 'row', index: 5, start: 1, end: 3 },
-                    { type: 'col', index: 1, start: 1, end: 5 }, { type: 'col', index: 3, start: 0, end: 6 },
-                    { type: 'col', index: 5, start: 0, end: 3 }
-                ]
-            },
-            'eight_and_watch': {
-                id: 'eight_and_watch',
-                name: 'Eight and Watch',
-                title: 'Alloha - Cacti Facti - Eight and Watch Edition',
-                isTwinningCell: (r, c) => (r === 0 && c >= 3) || (r === 3) || (r === 6 && c <= 3) || (c === 0 && r >= 3) || (c === 3 && r >= 0 && r <= 6) || (c === 4 && r <= 3),
-                getCrossScoreSegments: () => [
-                    { type: 'row', index: 0, start: 3, end: 6 }, { type: 'row', index: 3, start: 0, end: 6 }, { type: 'row', index: 6, start: 0, end: 3 },
-                    { type: 'col', index: 0, start: 3, end: 6 }, { type: 'col', index: 3, start: 0, end: 6 }, { type: 'col', index: 4, start: 0, end: 3 }
-                ]
-            },
-            'fake_snake': {
-                id: 'fake_snake',
-                name: 'Fake Snake',
-                title: 'Alloha - Cacti Facti - Fake Snake Edition',
-                isTwinningCell: (r, c) => (r === 0 && c >= 4) || (r === 2 && c >= 2 && c <= 4) || (r === 4 && c <= 2) || (c === 0 && r >= 4) || (c === 2 && r >= 2 && r <= 4) || (c === 4 && r <= 2),
-                getCrossScoreSegments: () => [
-                    { type: 'row', index: 0, start: 4, end: 6 }, { type: 'row', index: 2, start: 2, end: 4 }, { type: 'row', index: 4, start: 0, end: 2 },
-                    { type: 'col', index: 0, start: 4, end: 6 }, { type: 'col', index: 2, start: 2, end: 4 }, { type: 'col', index: 4, start: 0, end: 2 }
-                ]
-            },
-            'rune_dune': {
-                id: 'rune_dune',
-                name: 'Rune Dune',
-                title: 'Alloha - Cacti Facti - Rune Dune Edition',
-                isTwinningCell: (r, c) => (r === 2 && c >= 1 && c <= 5) || (r === 4 && c >= 1 && c <= 5) || (c === 1 && (r <= 2 || r >= 4)) || (c === 3) || (c === 5 && (r <= 2 || r >= 4)),
-                getCrossScoreSegments: () => [
-                    { type: 'row', index: 2, start: 1, end: 5 }, { type: 'row', index: 4, start: 1, end: 5 },
-                    { type: 'col', index: 1, start: 0, end: 2 }, { type: 'col', index: 1, start: 4, end: 6 },
-                    { type: 'col', index: 3, start: 0, end: 6 },
-                    { type: 'col', index: 5, start: 0, end: 2 }, { type: 'col', index: 5, start: 4, end: 6 }
-                ]
-            },
-            'space_race': {
-                id: 'space_race',
-                name: 'Space Race',
-                title: 'Alloha - Cacti Facti - Space Race Edition',
-                isTwinningCell: (r, c) => (r === 2 && c >= 2 && c <= 4) || (r === 3 && (c <= 2 || c >= 4)) || (r === 4 && c >= 2 && c <= 4) || (c === 2 && r >= 2 && r <= 4) || (c === 3 && (r <= 2 || r >= 4)) || (c === 4 && r >= 2 && r <= 4),
-                getCrossScoreSegments: () => [
-                    { type: 'row', index: 2, start: 2, end: 4 }, { type: 'row', index: 3, start: 0, end: 2 }, { type: 'row', index: 3, start: 4, end: 6 }, { type: 'row', index: 4, start: 2, end: 4 },
-                    { type: 'col', index: 2, start: 2, end: 4 }, { type: 'col', index: 3, start: 0, end: 2 }, { type: 'col', index: 3, start: 4, end: 6 }, { type: 'col', index: 4, start: 2, end: 4 }
-                ]
-            },
-             'flower_power': {
-                id: 'flower_power',
-                name: 'Flower Power',
-                title: 'Alloha - Cacti Facti - Flower Power Edition',
-                isTwinningCell: (r, c) => (r === 0 && c >= 2 && c <= 4) || (r === 2 && c >= 2 && c <= 4) || r === 4 || (c === 1 && r >= 3 && r <= 5) || (c === 2 && r <= 2) || (c === 3 && r >= 2) || (c === 4 && r <= 2) || (c === 5 && r >= 3 && r <= 5),
-                getCrossScoreSegments: () => [
-                    { type: 'row', index: 0, start: 2, end: 4 }, { type: 'row', index: 2, start: 2, end: 4 }, { type: 'row', index: 4, start: 0, end: 6 },
-                    { type: 'col', index: 1, start: 3, end: 5 }, { type: 'col', index: 2, start: 0, end: 2 },
-                    { type: 'col', index: 3, start: 2, end: 6 }, { type: 'col', index: 4, start: 0, end: 2 }, { type: 'col', index: 5, start: 3, end: 5 }
-                ]
-            },
-            'monster': {
-                id: 'monster',
-                name: 'Monster Monster',
-                title: 'Alloha - Cacti Facti - Monster Edition',
-                isTwinningCell: (r, c) => (r === 0 && c <= 2) || (r === 2 && c <= 4) || (r === 3 && c >= 4) || (r === 4 && c >= 2 && c <= 4) || (r === 6 && c <= 3) || (c === 0 && r <= 2) || (c === 2 && r <= 4) || (c === 3 && r >= 4) || (c === 4 && r >= 2 && r <= 4),
-                 getCrossScoreSegments: () => [
-                    { type: 'row', index: 0, start: 0, end: 2 }, { type: 'row', index: 2, start: 0, end: 4 }, { type: 'row', index: 3, start: 4, end: 6 }, { type: 'row', index: 4, start: 2, end: 4 }, { type: 'row', index: 6, start: 0, end: 3 },
-                    { type: 'col', index: 0, start: 0, end: 2 }, { type: 'col', index: 2, start: 0, end: 4 }, { type: 'col', index: 3, start: 4, end: 6 }, { type: 'col', index: 4, start: 2, end: 4 }
-                ]
-            }
+            'plain_jean': { id: 'plain_jean', name: 'Plain Jean', title: 'Alloha - Cacti Facti - Plain Jean Edition', timeLimit: 100, isTwinningCell: (r, c) => false, getCrossScoreSegments: function() { return generateCrossScoreSegments(this.isTwinningCell); } },
+            'one_won': { id: 'one_won', name: 'One Won', title: 'Alloha - Cacti Facti - One Won Edition', timeLimit: 100, isTwinningCell: (r, c) => c === 3, getCrossScoreSegments: function() { return generateCrossScoreSegments(this.isTwinningCell); } },
+            'plus_minus': { id: 'plus_minus', name: 'Plus Minus', title: 'Alloha - Cacti Facti - Plus Minus Edition', timeLimit: 100, isTwinningCell: (r, c) => r === 3 || c === 3, getCrossScoreSegments: function() { return generateCrossScoreSegments(this.isTwinningCell); } },
+            'sugar_cube': { id: 'sugar_cube', name: 'Sugar Cube', title: 'Alloha - Cacti Facti - Sugar Cube Edition', timeLimit: 100, isTwinningCell: (r, c) => r === 0 || r === 6 || c === 0 || c === 6, getCrossScoreSegments: function() { return generateCrossScoreSegments(this.isTwinningCell); } },
+            'wonder_wander': { id: 'wonder_wander', name: 'Wonder Wander Edition', title: 'Alloha - Cacti Facti - Wonder Wander Edition', timeLimit: 120, isTwinningCell: (r, c) => r === 6 || [0, 3, 6].includes(c), getCrossScoreSegments: function() { return generateCrossScoreSegments(this.isTwinningCell); } },
+            'jail_mail': { id: 'jail_mail', name: 'Jail Mail', title: 'Alloha - Cacti Facti - Jail Mail Edition', timeLimit: 120, isTwinningCell: (r, c) => [0, 2, 4, 6].includes(c), getCrossScoreSegments: function() { return generateCrossScoreSegments(this.isTwinningCell); } },
+            'box_vox': { id: 'box_vox', name: 'Box Vox Edition', title: 'Alloha - Cacti Facti - Box Vox Edition', timeLimit: 120, isTwinningCell: (r, c) => [0, 3, 6].includes(r) || [0, 3, 6].includes(c), getCrossScoreSegments: function() { return generateCrossScoreSegments(this.isTwinningCell); } },
+            'hash_hush': { id: 'hash_hush', name: 'Hash Hush', title: 'Alloha - Cacti Facti - Hash Hush Edition', timeLimit: 120, isTwinningCell: (r, c) => [2, 4].includes(r) || [2, 4].includes(c), getCrossScoreSegments: function() { return generateCrossScoreSegments(this.isTwinningCell); } },
+            'core': { id: 'core', name: 'Cacti Facti Edition', title: 'Alloha - Cacti Facti Edition', timeLimit: 150, isTwinningCell: (r, c) => (r === 3 && c >= 3 && c <= 5) || (r === 5 && c >= 1 && c <= 3) || (c === 1 && r >= 1 && r <= 5) || (c === 3) || (c === 5 && r >= 0 && r <= 3), getCrossScoreSegments: function() { return generateCrossScoreSegments(this.isTwinningCell); } },
+            'eight_and_watch': { id: 'eight_and_watch', name: 'Eight and Watch', title: 'Alloha - Cacti Facti - Eight and Watch Edition', timeLimit: 150, isTwinningCell: (r, c) => (r === 0 && c >= 3) || (r === 3) || (r === 6 && c <= 3) || (c === 0 && r >= 3) || (c === 3) || (c === 6 && r <= 3), getCrossScoreSegments: function() { return generateCrossScoreSegments(this.isTwinningCell); } },
+            'fake_snake': { id: 'fake_snake', name: 'Fake Snake', title: 'Alloha - Cacti Facti - Fake Snake Edition', timeLimit: 150, isTwinningCell: (r, c) => (r === 0 && c >= 4) || (r === 2 && c >= 2 && c <= 4) || (r === 4 && c <= 2) || (c === 0 && r >= 4) || (c === 2 && r >= 2 && r <= 4) || (c === 4 && r <= 2), getCrossScoreSegments: function() { return generateCrossScoreSegments(this.isTwinningCell); } },
+            'rune_dune': { id: 'rune_dune', name: 'Rune Dune', title: 'Alloha - Cacti Facti - Rune Dune Edition', timeLimit: 150, isTwinningCell: (r, c) => (r === 2 && c >= 1 && c <= 5) || (r === 4 && c >= 1 && c <= 5) || (c === 1 && (r <= 2 || r >= 4)) || (c === 3) || (c === 5 && (r <= 2 || r >= 4)), getCrossScoreSegments: function() { return generateCrossScoreSegments(this.isTwinningCell); } },
+            'space_race': { id: 'space_race', name: 'Space Race', title: 'Alloha - Cacti Facti - Space Race Edition', timeLimit: 180, isTwinningCell: (r, c) => (r === 2 && c >= 2 && c <= 4) || (r === 3 && (c <= 2 || c >= 4)) || (r === 4 && c >= 2 && c <= 4) || (c === 2 && r >= 2 && r <= 4) || (c === 3 && (r <= 2 || r >= 4)) || (c === 4 && r >= 2 && r <= 4), getCrossScoreSegments: function() { return generateCrossScoreSegments(this.isTwinningCell); } },
+            'flower_power': { id: 'flower_power', name: 'Flower Power', title: 'Alloha - Cacti Facti - Flower Power Edition', timeLimit: 180, isTwinningCell: (r, c) => (r === 0 && c >= 2 && c <= 4) || (r === 2 && c >= 2 && c <= 4) || r === 4 || (c === 1 && r >= 3 && r <= 5) || (c === 2 && r <= 2) || (c === 3 && r >= 2) || (c === 4 && r <= 2) || (c === 5 && r >= 3 && r <= 5), getCrossScoreSegments: function() { return generateCrossScoreSegments(this.isTwinningCell); } },
+            'monster': { id: 'monster', name: 'Monster Monster', title: 'Alloha - Cacti Facti - Monster Edition', timeLimit: 180, isTwinningCell: (r, c) => (r === 0 && c <= 2) || (r === 2 && c <= 4) || (r === 3 && c >= 4) || (r === 4 && c >= 2 && c <= 4) || (r === 6 && c <= 3) || (c === 0 && r <= 2) || (c === 2 && r <= 4) || (c === 3 && r >= 4) || (c === 4 && r >= 2 && r <= 4), getCrossScoreSegments: function() { return generateCrossScoreSegments(this.isTwinningCell); } }
         };
 
         class GameState {
@@ -429,15 +370,16 @@
                 this.config = config;
                 this.isTimeBurst = isTimeBurst;
                 this.timerId = null;
-                this.timeLeft = 60;
+                this.timeLeft = config.timeLimit;
                 this.DESERT_SYMBOLS = { 'Hut': '🛖', 'Cactus': '🌵', 'Rock': '🪨', 'Sun': '🌞', 'PalmTree': '🌴', 'Snake': '🐍' };
                 this.SPECIAL_SYMBOLS = { 'WILD': '💎', 'CURSED': '☠️' };
                 this.SYMBOLS = Object.values(this.DESERT_SYMBOLS);
                 this.SYMBOL_COLORS = { '🛖': 'text-amber-700', '🌵': 'text-green-600', '🪨': 'text-gray-500', '🌞': 'text-yellow-400', '🌴': 'text-lime-700', '🐍': 'text-green-700', '💎': 'text-sky-500' };
-                this.SCORING_RULES = { 7: 20, 6: 14, 5: 10, 4: 8, 3: 3 };
+                this.SCORING_RULES = { 7: 20, 6: 12, 5: 8, 4: 5, 3: 3 };
                 this.GRID_SIZE = 7; this.MAX_TURNS = 24; this.CROSS_MULTIPLIER = 2; this.LINE_DEATH_PENALTY = -5; this.CROSS_DEATH_PENALTY = -5; this.MIN_SEQUENCE_LENGTH = 3;
                 
                 this.gridCells = [];
+                this.focusedCell = null;
                 this.audio = { unlocked: false, context: null, sounds: new Map() };
                 this.DOMElements = this.getDOMElements();
                 
@@ -480,6 +422,7 @@
                 this.lastGameState = null;
                 this.currentTotalScore = 0;
                 this.gameStateManager = new GameState();
+                this.focusedCell = { r: 0, c: 0 };
 
                 if (savedState) {
                     this.gridData = JSON.parse(savedState.gridData);
@@ -495,9 +438,10 @@
                     this.wildcardTurn = savedState.wildcardTurn;
                     this.gameStateManager.currentState = savedState.currentState;
                     this.timeLeft = savedState.timeLeft;
-                    if(this.isTimeBurst && this.turnCount > 0) this.startTimer();
+                    if(this.isTimeBurst && this.turnCount > 0 && !this.gameStateManager.is('GAME_OVER')) this.startTimer();
 
                 } else {
+                    this.timeLeft = this.config.timeLimit;
                     this.cursedBlockTurn = Math.floor(Math.random() * 8) + 5;
                     this.wildcardTurn = Math.floor(Math.random() * 8) + 15;
                     if (this.wildcardTurn === this.cursedBlockTurn) this.wildcardTurn++;
@@ -548,12 +492,16 @@
             audioPlay(soundName) { this.audio.sounds.get(soundName)?.(); }
 
             startTimer() {
-                if (this.timerId) return;
+                if (this.timerId || this.gameStateManager.is('GAME_OVER')) return;
+                this.updateTimerDisplay();
                 this.timerId = setInterval(() => {
+                    if (this.gameStateManager.is('GAME_OVER')) {
+                        this.stopTimer();
+                        return;
+                    }
                     this.timeLeft--;
                     this.updateTimerDisplay();
                     if (this.timeLeft <= 0) {
-                        this.stopTimer();
                         this.endGame("Time's up!");
                     }
                 }, 1000);
@@ -662,9 +610,35 @@
                     this.gridCells.push(row);
                 }
                 this.DOMElements.game_board.appendChild(fragment);
+                this.updateFocusVisuals();
             }
             updateFullGrid() { for (let r = 0; r < this.GRID_SIZE; r++) for (let c = 0; c < this.GRID_SIZE; c++) this.updateGridCell(r, c); }
             updateGridCell(r, c) { if (this.gridCells[r]?.[c]) this.updateCell(this.gridCells[r][c], r, c); }
+            
+            updateFocusVisuals() {
+                this.gridCells.flat().forEach(cell => cell.classList.remove('focused-cell'));
+                if (this.focusedCell) {
+                    const { r, c } = this.focusedCell;
+                    this.gridCells[r][c].classList.add('focused-cell');
+                }
+            }
+            
+            moveFocus(dr, dc) {
+                if (!this.focusedCell) this.focusedCell = { r: 0, c: 0 };
+                let { r, c } = this.focusedCell;
+                r = Math.max(0, Math.min(this.GRID_SIZE - 1, r + dr));
+                c = Math.max(0, Math.min(this.GRID_SIZE - 1, c + dc));
+                this.focusedCell = { r, c };
+                this.updateFocusVisuals();
+            }
+            
+            placeWithKeyboard() {
+                if (!this.focusedCell) return;
+                const { r, c } = this.focusedCell;
+                const cellElement = this.gridCells[r][c];
+                this.handleCellClick({ target: cellElement });
+            }
+
             renderScorePlaceholders() {
                 this.DOMElements.row_scores_display.innerHTML = ''; 
                 this.DOMElements.col_scores_display.innerHTML = '';
@@ -702,7 +676,7 @@
                 wrapper.className = 'w-full flex flex-col justify-center gap-3 lg:gap-4 pt-2';
                 let timerHTML = '';
                 if(this.isTimeBurst) {
-                    timerHTML = `<div id="timer-display" class="w-14 h-14 lg:w-16 lg:h-16 rounded-xl glass-card flex items-center justify-center text-2xl lg:text-3xl font-bold" style="color: var(--accent);">60</div>`;
+                    timerHTML = `<div id="timer-display" class="w-14 h-14 lg:w-16 lg:h-16 rounded-xl glass-card flex items-center justify-center text-2xl lg:text-3xl font-bold" style="color: var(--accent);">${this.timeLeft}</div>`;
                 }
 
                 wrapper.innerHTML = `<div class="flex justify-center items-center gap-2 lg:gap-4">
@@ -718,6 +692,7 @@
                 this.updateControlsState();
                 this.setupSuperpowerEventListeners(); 
                 this.updateSuperpowerButtonsUI();
+                if(this.isTimeBurst) this.updateTimerDisplay();
             }
             updateControlsState() {
                 if (this.gameStateManager.is('PRE_GAME')) return;
@@ -735,11 +710,11 @@
             }
             handleSymbolSelect(symbol) { 
                 if (!this.gameStateManager.is('PRE_GAME')) return; 
-                if (this.isTimeBurst) this.startTimer();
                 this.audioUnlock(); this.audioPlay('pop'); this.gridData[0][0] = symbol; this.gameStateManager.setState('AWAITING_ROLL'); this.updateGridCell(0, 0); this.renderControls(); 
             }
-            handleRollDice() {
+            async handleRollDice() {
                 if (!this.gameStateManager.is('AWAITING_ROLL') || this.gameStateManager.is('GAME_OVER')) return;
+                if (this.isTimeBurst && !this.timerId) { this.startTimer(); }
                 const nextTurn = this.turnCount + 1; let tempRoll;
                 if (nextTurn === this.cursedBlockTurn) { this.audioPlay('thud'); tempRoll = [this.SYMBOLS[Math.floor(Math.random() * this.SYMBOLS.length)], this.SPECIAL_SYMBOLS.CURSED]; }
                 else if (nextTurn === this.wildcardTurn) { this.audioPlay('chime'); tempRoll = [this.SYMBOLS[Math.floor(Math.random() * this.SYMBOLS.length)], this.SPECIAL_SYMBOLS.WILD]; }
@@ -748,17 +723,22 @@
                 this.gameStateManager.setState('ANIMATING_ROLL'); this.updateControlsState();
                 const d1 = document.getElementById('dice-1'), d2 = document.getElementById('dice-2');
                 d1.classList.add('dice-tumble'); d2.classList.add('dice-tumble');
-                setTimeout(() => {
-                    d1.classList.remove('dice-tumble'); d2.classList.remove('dice-tumble');
-                    this.gameStateManager.setState('AWAITING_PLACEMENT');
-                    this.saveStateForUndo(); 
-                    this.updateControlsState(); 
-                    this.updateSuperpowerButtonsUI();
-                }, 600);
+                
+                await delay(600);
+                
+                d1.classList.remove('dice-tumble'); d2.classList.remove('dice-tumble');
+                this.gameStateManager.setState('AWAITING_PLACEMENT');
+                this.saveStateForUndo(); 
+                this.updateControlsState(); 
+                this.updateSuperpowerButtonsUI();
             }
             handleCellClick(e) {
                 const cell = e.target.closest('[data-row]'); if (!cell) return;
                 const r = parseInt(cell.dataset.row), c = parseInt(cell.dataset.col);
+                
+                this.focusedCell = { r, c };
+                this.updateFocusVisuals();
+
                 if (this.activeSuperpower) { this.handleSuperpowerCellClick(r, c, cell); return; }
                 if (!this.gameStateManager.is('AWAITING_PLACEMENT')) return;
                 if (this.firstPlacementCell) { this.handleSecondPlacement(r, c, cell); } else { this.handleFirstPlacement(r, c); }
@@ -771,7 +751,7 @@
                 else { cell.classList.add('shake-animation'); setTimeout(() => cell.classList.remove('shake-animation'), 400); this.audioPlay('invalid'); }
             }
             saveStateForUndo() { this.lastGameState = this.getState(); }
-            completeMove(r, c) {
+            async completeMove(r, c) {
                 this.gameStateManager.setState('PROCESSING_TURN');
                 this.gridData[r][c] = this.currentRoll[1];
                 this.firstPlacementCell = null;
@@ -779,7 +759,9 @@
                 this.updateProgressBar();
                 this.updateGridCell(r, c);
                 this.audioPlay('pop');
-                setTimeout(this.processTurnEnd.bind(this), 300);
+                
+                await delay(300);
+                this.processTurnEnd();
             }
             processTurnEnd() {
                 if (this.gameStateManager.is('GAME_OVER')) return;
@@ -791,11 +773,28 @@
             endGame(reason = "") {
                 if (this.gameStateManager.is('GAME_OVER')) return;
                 this.stopTimer();
-                this.gameStateManager.setState('GAME_OVER'); this.updateAllScores();
-                const finalScore = this.currentTotalScore;
+                this.gameStateManager.setState('GAME_OVER');
+                this.updateAllScores();
+
+                if (reason === "Time's up!") {
+                    this.DOMElements.game_board_container.classList.add('shake-animation');
+                    setTimeout(() => this.DOMElements.game_board_container.classList.remove('shake-animation'), 500);
+                }
                 
+                let finalScore = this.currentTotalScore;
+                
+                const isGridIncomplete = this.gridData.flat().includes(null);
+                if (reason === "Time's up!" && isGridIncomplete) {
+                    finalScore = 0;
+                }
+
                 const highScoreKey = `cactiFactiHighScore_${this.config.id}_${this.isTimeBurst ? 'timeburst' : 'classic'}`;
-                if (finalScore > this.highScore) { this.highScore = finalScore; localStorage.setItem(highScoreKey, this.highScore); }
+                const currentHighScore = parseInt(localStorage.getItem(highScoreKey)) || 0;
+                if (finalScore > currentHighScore) {
+                    localStorage.setItem(highScoreKey, finalScore);
+                    this.highScore = finalScore;
+                    this.triggerConfetti();
+                }
 
                 this.DOMElements.game_over_reason.textContent = reason;
                 this.DOMElements.final_score_modal.textContent = finalScore;
@@ -807,6 +806,22 @@
                 this.DOMElements.final_penalty_score.textContent = this.DOMElements.empty_block_penalty.textContent;
                 setTimeout(() => this.DOMElements.game_over_modal.classList.add('is-open'), 500);
             }
+
+            triggerConfetti() {
+                const container = this.DOMElements.effects_container;
+                if (!container) return;
+                const colors = ['#E57373', '#FF8A65', '#FFC107', '#FFF176'];
+                for (let i = 0; i < 50; i++) {
+                    const confetti = document.createElement('div');
+                    confetti.className = 'confetti-piece';
+                    confetti.style.left = `${Math.random() * 100}%`;
+                    confetti.style.animation = `confetti-fall ${1.5 + Math.random() * 2}s ${Math.random() * 2}s linear forwards`;
+                    confetti.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+                    container.appendChild(confetti);
+                    setTimeout(() => confetti.remove(), 4000);
+                }
+            }
+
             hasValidMoves() { for (let r = 0; r < this.GRID_SIZE; r++) for (let c = 0; c < this.GRID_SIZE; c++) if (!this.gridData[r][c]) { const n = [[-1, 0], [1, 0], [0, -1], [0, 1]]; for (const [dr, dc] of n) { const nr = r + dr, nc = c + dc; if (nr >= 0 && nr < this.GRID_SIZE && nc >= 0 && nc < this.GRID_SIZE && !this.gridData[nr][nc]) return true; } } return false; }
             detectStuckBlocks() { this.stuckBlocks.clear(); for (let r = 0; r < this.GRID_SIZE; r++) for (let c = 0; c < this.GRID_SIZE; c++) if (!this.gridData[r][c]) { const n = [[-1, 0], [1, 0], [0, -1], [0, 1]]; if (n.every(([dr, dc]) => { const nr = r + dr, nc = c + dc; return nr < 0 || nr >= this.GRID_SIZE || nc < 0 || nc >= this.GRID_SIZE || this.gridData[nr][nc] })) this.stuckBlocks.add(`${r},${c}`); } this.updateFullGrid(); }
             updateAllScores() {
@@ -820,6 +835,9 @@
             calculateCrossScore() {
                 let bonusScore = 0;
                 const getScoreForSegment = (segmentSymbols) => {
+                    if (segmentSymbols.length < this.MIN_SEQUENCE_LENGTH) {
+                        return 0;
+                    }
                     let score = 0; const usedIndices = new Set();
                     for (let len = segmentSymbols.length; len >= this.MIN_SEQUENCE_LENGTH; len--) {
                          for (let i = 0; i <= segmentSymbols.length - len; i++) {
@@ -947,26 +965,13 @@
 
             populateEditionModal() {
                 const container = document.getElementById('edition-options');
-                const classicBtn = document.getElementById('mode-classic-btn');
-                const timeBurstBtn = document.getElementById('mode-time-burst-btn');
-
-                classicBtn.addEventListener('click', () => {
-                    this.activeMode = 'classic';
-                    classicBtn.classList.add('active');
-                    timeBurstBtn.classList.remove('active');
-                });
-                timeBurstBtn.addEventListener('click', () => {
-                    this.activeMode = 'timeburst';
-                    timeBurstBtn.classList.add('active');
-                    classicBtn.classList.remove('active');
-                });
-
-
+                
                 container.innerHTML = '';
                 Object.values(variantConfigs).forEach(config => {
                     const button = document.createElement('button');
                     button.className = 'w-full text-left p-3 rounded-lg hover:bg-gray-200/50 font-semibold transition-colors';
                     button.textContent = config.name;
+                    button.dataset.editionId = config.id; 
                     button.onclick = () => {
                         const game = this.currentGameInstance;
                         const isGameInProgress = game && game.turnCount > 0 && !game.gameStateManager.is('GAME_OVER');
@@ -1005,7 +1010,9 @@
 
                     this.currentGameInstance = new Game(config, isTimeBurst, savedState);
                     
-                    document.getElementById('current-edition-display').textContent = 'Now Playing: ' + config.name + (isTimeBurst ? ' - Time Burst' : '');
+                    const editionDisplay = document.getElementById('current-edition-display');
+                    let timeBurstText = isTimeBurst ? ' - <span class="text-red-500 font-bold">Time Burst</span>' : '';
+                    editionDisplay.innerHTML = 'Now Playing: ' + config.name + timeBurstText;
                     
                     gameContainer.style.opacity = '1';
                 }, 250);
@@ -1018,17 +1025,62 @@
             setupGlobalEventListeners() {
                 const editionModal = document.getElementById('edition-select-modal');
                 const confirmModal = document.getElementById('confirm-restart-modal');
-                
+                const toggleSwitch = document.getElementById('mode-toggle-switch');
+                const classicText = document.getElementById('classic-text');
+                const timeBurstText = document.getElementById('time-burst-text');
+
                 document.getElementById('select-edition-btn').addEventListener('click', () => {
+                    const isTimeBurst = this.currentGameInstance.isTimeBurst;
+                    this.activeMode = isTimeBurst ? 'timeburst' : 'classic';
+                    
+                    if(isTimeBurst) {
+                        toggleSwitch.classList.add('time-burst-active');
+                        timeBurstText.classList.remove('text-gray-600');
+                        timeBurstText.classList.add('text-red-500');
+                        classicText.classList.add('text-gray-600');
+                    } else {
+                        toggleSwitch.classList.remove('time-burst-active');
+                        classicText.classList.remove('text-gray-600');
+                        timeBurstText.classList.add('text-gray-600');
+                    }
+
+                    const currentEditionId = this.currentGameInstance.config.id;
+                    const editionButtons = document.querySelectorAll('#edition-options button');
+                    editionButtons.forEach(btn => {
+                        btn.classList.remove('edition-selected');
+                        if (btn.dataset.editionId === currentEditionId) {
+                            btn.classList.add('edition-selected');
+                        }
+                    });
+
                     editionModal.classList.add('is-open');
                 });
+
+                toggleSwitch.addEventListener('click', () => {
+                    toggleSwitch.classList.toggle('time-burst-active');
+                    this.activeMode = toggleSwitch.classList.contains('time-burst-active') ? 'timeburst' : 'classic';
+                    if (this.activeMode === 'timeburst') {
+                        timeBurstText.classList.remove('text-gray-600');
+                        timeBurstText.classList.add('text-red-500');
+                        classicText.classList.add('text-gray-600');
+                    } else {
+                        classicText.classList.remove('text-gray-600');
+                        timeBurstText.remove('text-red-500');
+                        timeBurstText.classList.add('text-gray-600');
+                    }
+                });
+                
                 document.getElementById('close-edition-select-btn').addEventListener('click', () => editionModal.classList.remove('is-open'));
 
                 document.getElementById('rules-btn').addEventListener('click', () => this.currentGameInstance.DOMElements.rules_modal.classList.add('is-open'));
 
                 document.getElementById('new-game-btn').addEventListener('click', () => {
                     const game = this.currentGameInstance;
-                    const isGameInProgress = game && game.turnCount > 0 && !game.gameStateManager.is('GAME_OVER');
+                    if (game && game.gameStateManager.is('GAME_OVER')) {
+                        this.resetCurrentVariant();
+                        return;
+                    }
+                    const isGameInProgress = game && game.turnCount > 0;
                     
                     if (isGameInProgress) {
                         this.pendingAction = () => this.resetCurrentVariant();
@@ -1052,22 +1104,44 @@
                 });
 
                 document.addEventListener('keydown', (e) => {
+                    const game = this.currentGameInstance;
+                    if (!game) return;
+
+                    if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+                        e.preventDefault();
+                        if (e.key === 'ArrowUp') game.moveFocus(-1, 0);
+                        if (e.key === 'ArrowDown') game.moveFocus(1, 0);
+                        if (e.key === 'ArrowLeft') game.moveFocus(0, -1);
+                        if (e.key === 'ArrowRight') game.moveFocus(0, 1);
+                        return;
+                    }
+                    
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        if (game.gameStateManager.is('AWAITING_ROLL')) {
+                            game.handleRollDice();
+                        } else if (game.gameStateManager.is('AWAITING_PLACEMENT')) {
+                            game.placeWithKeyboard();
+                        }
+                        return;
+                    }
+
                     if (e.key === 'Escape') {
-                        if (this.currentGameInstance?.activeSuperpower) {
-                             if (this.currentGameInstance.activeSuperpower === 'swapThem' && this.currentGameInstance.swapFirstCell) {
-                                this.currentGameInstance.gridCells[this.currentGameInstance.swapFirstCell.r][this.currentGameInstance.swapFirstCell.c].classList.remove('pulse-animation');
-                                this.currentGameInstance.swapFirstCell = null;
+                        if (game.activeSuperpower) {
+                             if (game.activeSuperpower === 'swapThem' && game.swapFirstCell) {
+                                game.gridCells[game.swapFirstCell.r][game.swapFirstCell.c].classList.remove('pulse-animation');
+                                game.swapFirstCell = null;
                             }
-                            this.currentGameInstance.activeSuperpower = null;
-                            this.currentGameInstance.updateSuperpowerButtonsUI();
-                            this.currentGameInstance.gameStateManager.setState(this.currentGameInstance.firstPlacementCell ? 'AWAITING_PLACEMENT' : 'AWAITING_ROLL');
+                            game.activeSuperpower = null;
+                            game.updateSuperpowerButtonsUI();
+                            game.gameStateManager.setState(game.firstPlacementCell ? 'AWAITING_PLACEMENT' : 'AWAITING_ROLL');
                         } else {
                            ['rules-modal', 'game-over-modal', 'exchange-modal', 'edition-select-modal', 'confirm-restart-modal'].forEach(id => document.getElementById(id).classList.remove('is-open'));
                         }
                     }
-                    if ((e.key === ' ' || e.key === 'Enter') && this.currentGameInstance?.gameStateManager.is('AWAITING_ROLL')) {
+                    if (e.key === ' ' && game.gameStateManager.is('AWAITING_ROLL')) {
                         e.preventDefault();
-                        this.currentGameInstance.handleRollDice();
+                        game.handleRollDice();
                     }
                 });
             }
